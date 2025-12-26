@@ -1,34 +1,31 @@
-name: Deploy to PROD EC2
+name: PROD Deployment
 
 on:
   workflow_run:
-    workflows: ["CI/CD to DEV EC2"]  # Name of your dev.yml workflow
+    workflows: ["DEV Deployment"]
     types:
       - completed
 
 jobs:
   deploy-prod:
-    name: Deploy to PROD EC2
     runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     environment:
-      name: production  # Configure required reviewers in GitHub settings
+      name: production   # manual approval required
+
     steps:
-      - name: SSH to PROD EC2 and deploy
+      - name: Deploy to PROD EC2
         uses: appleboy/ssh-action@v0.1.9
         with:
           host: ${{ secrets.EC2_PROD_HOST }}
-          username: ${{ secrets.EC2_PROD_USER }}
-          key: ${{ secrets.EC2_PROD_KEY }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_KEY }}
           script: |
-            # Docker image from Docker Hub
-            IMAGE_NAME=${{ secrets.DOCKERHUB_USERNAME }}/ec2-ec2:latest
-            # Pull the latest image
-            docker pull $IMAGE_NAME
-            # Stop and remove old container if it exists
-            docker stop ec2-ec2 || true
-            docker rm ec2-ec2 || true
-            # Run container on port 80
-            docker run -d --name ec2-ec2 -p 80:80 --restart unless-stopped $IMAGE_NAME
-            # Optional: show running containers
-            docker ps
+            docker pull nomanhassan9/frontend-app:latest
+            docker stop frontend || true
+            docker rm frontend || true
+            docker run -d \
+              --name frontend \
+              -p 80:80 \
+              --restart always \
+              nomanhassan9/frontend-app:latest
