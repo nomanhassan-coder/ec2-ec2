@@ -1,0 +1,34 @@
+name: Deploy to PROD EC2
+
+on:
+  workflow_run:
+    workflows: ["CI/CD to DEV EC2"]  # Name of your dev.yml workflow
+    types:
+      - completed
+
+jobs:
+  deploy-prod:
+    name: Deploy to PROD EC2
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    environment:
+      name: production  # Configure required reviewers in GitHub settings
+    steps:
+      - name: SSH to PROD EC2 and deploy
+        uses: appleboy/ssh-action@v0.1.9
+        with:
+          host: ${{ secrets.EC2_PROD_HOST }}
+          username: ${{ secrets.EC2_PROD_USER }}
+          key: ${{ secrets.EC2_PROD_KEY }}
+          script: |
+            # Docker image from Docker Hub
+            IMAGE_NAME=${{ secrets.DOCKERHUB_USERNAME }}/ec2-ec2:latest
+            # Pull the latest image
+            docker pull $IMAGE_NAME
+            # Stop and remove old container if it exists
+            docker stop ec2-ec2 || true
+            docker rm ec2-ec2 || true
+            # Run container on port 80
+            docker run -d --name ec2-ec2 -p 80:80 --restart unless-stopped $IMAGE_NAME
+            # Optional: show running containers
+            docker ps
